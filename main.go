@@ -55,7 +55,7 @@ func main() {
 	getADCS := pflag.Bool("getADCS", false, "get ADCS information")
 	getOU := pflag.Bool("getOU", false, "get domain OU")
 	checkLAPS := pflag.Bool("checkLAPS", false, "get is have LAPS, If the current user has permission, all LAPS passwords will be exported.")
-	checkbackdoor := pflag.Bool("checkbackdoor", false, "check backdoor：MAQ、AsReproast、SIDHistory、GetRBCD、UnconstrainedDeligation、ConstrainedDeligation、SensitiveDelegateAccount")
+	checkbackdoor := pflag.Bool("checkbackdoor", false, "check backdoor：MAQ、AsReproast、Kerberoast、SIDHistory、GetRBCD、UnconstrainedDeligation、ConstrainedDeligation、SensitiveDelegateAccount")
 	Krbtgttime := pflag.Bool("Krbtgttime", false, "get Krbtgt password last set time ")
 
 	pflag.CommandLine.SortFlags=false
@@ -245,6 +245,7 @@ func main() {
 		goddi.SensitiveDelegateAccount(li.Conn, baseDN)
 		goddi.GetMAQ(li.Conn, baseDN)
 		goddi.AsReproast(li.Conn, baseDN)
+		goddi.Kerberoast(li.Conn, baseDN)
 		goddi.SIDHistory(li.Conn, baseDN)
 		goddi.GetRBCD(li.Conn, baseDN)
 		goddi.UnconstrainedDeligation(li.Conn, baseDN)
@@ -350,6 +351,7 @@ func main() {
 	goddi.GetLAPS(li.Conn, baseDN)
 	goddi.SensitiveDelegateAccount(li.Conn, baseDN)
 	goddi.AsReproast(li.Conn, baseDN)
+	goddi.Kerberoast(li.Conn, baseDN)
 	goddi.SIDHistory(li.Conn, baseDN)
 	goddi.CreatorSID(li.Conn, baseDN)
 	goddi.GetRBCD(li.Conn, baseDN)

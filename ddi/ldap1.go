@@ -519,7 +519,7 @@ func AsReproast(conn *ldap.Conn, baseDN string) {
 
 	sr := ldapSearch(baseDN, filter, attributes, conn)
 
-	fmt.Printf("[i] AsReporoast Users: %d found\n", len(sr.Entries))
+	fmt.Printf("[i] AsReproast Users: %d found\n", len(sr.Entries))
 	for _, entry := range sr.Entries {
 		data := []string{
 			entry.GetAttributeValue("sAMAccountName"),
@@ -532,6 +532,29 @@ func AsReproast(conn *ldap.Conn, baseDN string) {
 		//greencolor("                    [+] "+entry.GetAttributeValue("sAMAccountName")+ " \n")
 	}
 	writeCSV("AsReproast_User", csv)
+}
+
+func Kerberoast(conn *ldap.Conn, baseDN string) {
+
+	attributes := []string{
+		"distinguishedName",
+		"servicePrincipalName"}
+	filter :=  "(&(servicePrincipalName=*)(!(objectclass=computer)))"
+	csv := [][]string{}
+	csv = append(csv, attributes)
+
+	sr := ldapSearch(baseDN, filter, attributes, conn)
+
+	fmt.Printf("[i] Kerberoast Users: %d found\n", len(sr.Entries))
+	for _, entry := range sr.Entries {
+		data := []string{
+			entry.GetAttributeValue("distinguishedName"),
+			entry.GetAttributeValue("servicePrincipalName")}
+		csv = append(csv, data)
+		fmt.Printf("                    [+] " + entry.GetAttributeValue("distinguishedName") +"  ==>>>  "+ entry.GetAttributeValue("servicePrincipalName")+" \n")
+		//greencolor("                    [+] "+entry.GetAttributeValue("sAMAccountName")+ " \n")
+	}
+	writeCSV("Kerberoast_User", csv)
 }
 
 func SIDHistory(conn *ldap.Conn, baseDN string) {
