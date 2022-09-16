@@ -85,3 +85,7 @@
 https://github.com/NetSPI/goddi
 
 https://github.com/kgoins/go-winacl/
+
+### 免责声明
+
+本工具仅能在取得足够合法授权情况下使用，使用本工具的过程中存在任何非法行为将自行承担所有后果，本工具开发者不承担任何法律及连带责任。 
