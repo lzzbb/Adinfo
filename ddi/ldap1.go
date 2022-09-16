@@ -9,8 +9,8 @@ import (
 	"strings"
 )
 
-var Exchangename []string
-var Controllername []string
+//var Exchangename []string
+//var Controllername []string
 
 func GetDomainVersion(conn *ldap.Conn, baseDN string) {
 	attributes := []string{
@@ -52,101 +52,13 @@ func GetDomainVersion(conn *ldap.Conn, baseDN string) {
 	writeCSV("DomainVersion", csv)
 }
 
-//func GETIsHaveAdcs(conn *ldap.Conn, baseDN string) {
-//
-//	attributes := []string{
-//		"distinguishedName",
-//		"cn",
-//		"distinguishedName"}
-//	filter := "(objectclass=certificationAuthority)"
-//
-//	csv := [][]string{}
-//	csv = append(csv, attributes)
-//
-//	sr := ldapSearch(baseDN, filter, attributes, conn)
-//
-//	if len(sr.Entries) > 0 {
-//		fmt.Printf("[i] ADCS has found!\n")
-//	//}
-//
-//	for _, entry := range sr.Entries {
-//		if (strings.Index(entry.GetAttributeValue("distinguishedName"), "Certification Authorities")) != -1 {
-//			data := []string{
-//				entry.GetAttributeValue("cn"),
-//				entry.GetAttributeValue("distinguishedName")}
-//			csv = append(csv, data)
-//			fmt.Printf("                    [i] Root CA:  \n")
-//			fmt.Printf("                    [+] " + entry.GetAttributeValue("distinguishedName") + " \n")
-//		}
-//	}
-//	writeCSV("ADCS", csv)
-//}
-//}
-
-func GETADCS(conn *ldap.Conn, baseDN string) {
-
-	attributes := []string{
-		"Root CA",
-		"Enterprise CA",
-		"cn",
-		"distinguishedName",
-		"dNSHostName",
-		"whenCreated",
-		"whenChanged"}
-	filter  := "(objectclass=certificationAuthority)"
-	filter1 := "(objectClass=pKIEnrollmentService)"
-	csv := [][]string{}
-	csv = append(csv, attributes)
-
-	sr := ldapSearch(baseDN, filter, attributes, conn)
-	sr1 := ldapSearch(baseDN, filter1, attributes, conn)
-
-	if len(sr.Entries) > 0 {
-		fmt.Printf("[i] ADCS has found!\n")
-		//}
-
-		for _, entry := range sr.Entries {
-			if (strings.Index(entry.GetAttributeValue("distinguishedName"), "Certification Authorities")) != -1 {
-				data := []string{
-					"√",
-					"",
-					entry.GetAttributeValue("cn"),
-					entry.GetAttributeValue("distinguishedName"),
-					"",
-					entry.GetAttributeValue("whenCreated"),
-					entry.GetAttributeValue("whenChanged")}
-				csv = append(csv, data)
-				fmt.Printf("                    [+] Root CA:" + "  ==>>>  " + entry.GetAttributeValue("cn") +"\n")
-
-			}
-		}
-
-		for _, entry := range sr1.Entries {
-
-				data := []string{
-					"",
-					"√",
-					entry.GetAttributeValue("cn"),
-					entry.GetAttributeValue("distinguishedName"),
-					entry.GetAttributeValue("dNSHostName"),
-					entry.GetAttributeValue("whenCreated"),
-					entry.GetAttributeValue("whenChanged")}
-
-				csv = append(csv, data)
-				fmt.Printf("                    [+] Enterprise/Enrollment CA:" + "  ==>>>  " + entry.GetAttributeValue("cn") +"（computer FQDN: "+ entry.GetAttributeValue("dNSHostName") +"）"+"\n")
-
-		}
-		writeCSV("ADCS", csv)
-	} else {
-		fmt.Printf("[i] ADCS has not found!\n")
-	}
-}
-
-func GetExchangeServerVersion(conn *ldap.Conn, baseDN string) {
-
+func GetExchangeServer(conn *ldap.Conn, baseDN string,domainname string) {
+	base := "dc=" + strings.Replace(domainname, ".", ",dc=", -1)
 	attributes := []string{
 		"name",
-		"serialNumber"}
+		"serialNumber",
+		"Exchangeip",
+		"msExchInstallPath"}
 	filter := "(objectCategory=msExchExchangeServer)"
 	csv := [][]string{}
 	csv = append(csv, attributes)
@@ -156,10 +68,13 @@ func GetExchangeServerVersion(conn *ldap.Conn, baseDN string) {
 	if len(sr.Entries) > 0 {
 		for _, entry := range sr.Entries {
 			var getversion string
-			Exchangename = append(Exchangename, entry.GetAttributeValue("name"))
-			//fmt.Printf(Exchangename[0])
+			//Exchangename = append(Exchangename, entry.GetAttributeValue("name"))
+			var exchangeips = GetipByname(conn,"DC="+domainname+",CN=MicrosoftDNS,DC=DomainDnsZones,"+base,entry.GetAttributeValue("name"))
+			var exchangeip string
+			for _, i := range exchangeips {
+				exchangeip += i+" "
+			}
 			versionget := entry.GetAttributeValue("serialNumber")
-			account := entry.GetAttributeValue("name")
 			if strings.Contains(versionget, "15.1") {
 				getversion = "Exchange Server 2016"
 			} else if strings.Contains(versionget, "15.0") {
@@ -174,10 +89,12 @@ func GetExchangeServerVersion(conn *ldap.Conn, baseDN string) {
 				getversion = "not fount!"
 			}
 			data := []string{
-				account,
-				getversion}
+				entry.GetAttributeValue("name"),
+				getversion,
+				exchangeip,
+				entry.GetAttributeValue("msExchInstallPath")}
 			csv = append(csv, data)
-			fmt.Printf("                    [+] " + account + "$  ==>>>  " + getversion + " \n")
+			fmt.Printf("                    [+] " + entry.GetAttributeValue("name") + "$  ==>>>  " + getversion +"  ==>>>  "+exchangeip+" \n")
 		}
 		writeCSV("ExchangeInformation", csv)
 	}
@@ -187,13 +104,14 @@ func GetUsers(conn *ldap.Conn, baseDN string) {
 
 	attributes := []string{
 		"sAMAccountName",
+		"adminCount",
+		"lastlogon",
+		"pwdLastSet",
 		"sAMAccountType",
 		"userPrincipalName",
 		"displayName",
 		"givenName",
 		"description",
-		"adminCount",
-		"homeDirectory",
 		"distinguishedName",
 		"memberOf"}
 	keywords := []string{
@@ -216,25 +134,30 @@ func GetUsers(conn *ldap.Conn, baseDN string) {
 	fmt.Printf("[i] Users: %d found\n", len(sr.Entries))
 
 	for _, entry := range sr.Entries {
+		Lastlogon, _ := strconv.Atoi(entry.GetAttributeValue("lastLogon"))
+		UserLastLogon := ConvertLDAPTime(Lastlogon).String()
+		pwdLastSet, _ := strconv.Atoi(entry.GetAttributeValue("pwdLastSet"))
+		pwdLastSetString := ConvertLDAPTime(pwdLastSet).String()
 		sam := entry.GetAttributeValue("sAMAccountName")
+		lastlogon:=UserLastLogon
 		samtype := entry.GetAttributeValue("sAMAccountType")
 		upn := entry.GetAttributeValue("userPrincipalName")
 		disname := entry.GetAttributeValue("displayName")
 		given := entry.GetAttributeValue("givenName")
 		desc := entry.GetAttributeValue("description")
 		adm := entry.GetAttributeValue("adminCount")
-		homedir := entry.GetAttributeValue("homeDirectory")
 		distinguished := entry.GetAttributeValue("distinguishedName")
 		mem := strings.Join(entry.GetAttributeValues("memberOf"), " ")
 		data := []string{
 			sam,
+			adm,
+			lastlogon,
+			pwdLastSetString,
 			samtype,
 			upn,
 			disname,
 			given,
 			desc,
-			adm,
-			homedir,
 			distinguished,
 			mem}
 
@@ -379,7 +302,7 @@ func UnconstrainedDeligation(conn *ldap.Conn, baseDN string) {
 
 	sr := ldapSearch(baseDN, filter, attributes, conn)
 
-	fmt.Printf("[i] UnconstrainedDeligation Users: %d found\n", len(sr.Entries))
+	fmt.Printf("[i] Unconstrained Deligation Users: %d found\n", len(sr.Entries))
 	for _, entry := range sr.Entries {
 		data := []string{
 			entry.GetAttributeValue("sAMAccountName"),
@@ -404,7 +327,7 @@ func ConstrainedDeligation(conn *ldap.Conn, baseDN string) {
 
 	sr := ldapSearch(baseDN, filter, attributes, conn)
 
-	fmt.Printf("[i] ConstrainedDeligation Users: %d found\n", len(sr.Entries))
+	fmt.Printf("[i] Constrained Deligation Users: %d found\n", len(sr.Entries))
 	for _, entry := range sr.Entries {
 		data := []string{
 			entry.GetAttributeValue("sAMAccountName"),
@@ -473,11 +396,14 @@ func SensitiveDelegateAccount(conn *ldap.Conn, baseDN string) {
 
 	fmt.Printf("[i] SensitiveDelegate Users: %d found\n", len(sr.Entries))
 	for _, entry := range sr.Entries {
+		Lastlogon, _ := strconv.Atoi(entry.GetAttributeValue("lastLogon"))
+		UserLastLogon := ConvertLDAPTime(Lastlogon).String()
+
 		data := []string{
 			entry.GetAttributeValue("sAMAccountName"),
 			entry.GetAttributeValue("mail"),
 			entry.GetAttributeValue("whenCreated"),
-			entry.GetAttributeValue("lastLogon"),
+			UserLastLogon,
 			entry.GetAttributeValue("memberOf")}
 		csv = append(csv, data)
 		fmt.Printf("                    [+] " + entry.GetAttributeValue("sAMAccountName") + " \n")
@@ -521,11 +447,13 @@ func AsReproast(conn *ldap.Conn, baseDN string) {
 
 	fmt.Printf("[i] AsReproast Users: %d found\n", len(sr.Entries))
 	for _, entry := range sr.Entries {
+		Lastlogon, _ := strconv.Atoi(entry.GetAttributeValue("lastLogon"))
+		UserLastLogon := ConvertLDAPTime(Lastlogon).String()
 		data := []string{
 			entry.GetAttributeValue("sAMAccountName"),
 			entry.GetAttributeValue("mail"),
 			entry.GetAttributeValue("whenCreated"),
-			entry.GetAttributeValue("lastLogon"),
+			UserLastLogon,
 			entry.GetAttributeValue("memberOf")}
 		csv = append(csv, data)
 		fmt.Printf("                    [+] " + entry.GetAttributeValue("sAMAccountName") + " \n")
@@ -616,84 +544,6 @@ func GetNameBySid(conn *ldap.Conn, baseDN string, sidstrr string) string {
 		}
 	}
 	return sidtouserName
-}
-
-
-func GetFSMORoles(conn *ldap.Conn, baseDN string) {
-
-	attributes := []string{
-		"distinguishedname",
-		"fSMORoleOwner"}
-	filter := "(&(objectClass=*)(fSMORoleOwner=*))"
-	csv := [][]string{}
-	csv = append(csv, attributes)
-
-	sr := ldapSearch(baseDN, filter, attributes, conn)
-
-	fmt.Printf("[i] FSMO Roles: %d found\n", len(sr.Entries))
-	for _, entry := range sr.Entries {
-		data := []string{
-			entry.DN,
-			entry.GetAttributeValue("fSMORoleOwner")}
-		csv = append(csv, data)
-	}
-	writeCSV("Domain_FSMO_Roles", csv)
-}
-
-func GetDomainSite(conn *ldap.Conn, baseDN string) {
-
-	attributes := []string{
-		"name",
-		"distinguishedname",
-		"whenCreated",
-		"whenChanged"}
-	baseDN = "CN=Sites,CN=Configuration," + baseDN
-	filter := "(&(objectCategory=site)(name=*))"
-	csv := [][]string{}
-	csv = append(csv, attributes)
-
-	sr := ldapSearch(baseDN, filter, attributes, conn)
-
-	fmt.Printf("[i] Domain Sites: %d found\n", len(sr.Entries))
-	for _, entry := range sr.Entries {
-		data := []string{
-			entry.GetAttributeValue("Name"),
-			entry.DN,
-			entry.GetAttributeValue("whenCreated"),
-			entry.GetAttributeValue("whenChanged")}
-		csv = append(csv, data)
-	}
-	writeCSV("Domain_Sites", csv)
-}
-
-func GetDomainSubnet(conn *ldap.Conn, baseDN string) {
-
-	attributes := []string{
-		"site",
-		"name",
-		"description",
-		"whenCreated",
-		"whenChanged",
-		"distinguishedname"}
-	baseDN = "CN=Subnets,CN=Sites,CN=Configuration," + baseDN
-	filter := "(objectCategory=subnet)"
-	csv := [][]string{}
-	csv = append(csv, attributes)
-
-	sr := ldapSearch(baseDN, filter, attributes, conn)
-
-	fmt.Printf("[i] Domain Subnets: %d found\n", len(sr.Entries))
-	for _, entry := range sr.Entries {
-		data := []string{
-			entry.GetAttributeValue("site"),
-			entry.GetAttributeValue("name"),
-			entry.GetAttributeValue("description"),
-			entry.GetAttributeValue("whenCreated"),
-			entry.GetAttributeValue("whenChanged"),
-			entry.DN}
-		csv = append(csv, data)
-	}
-	writeCSV("Domain_Subnets", csv)
 }
 
 func GetDomainAccountPolicy(conn *ldap.Conn, baseDN string) {
@@ -1006,6 +856,9 @@ func GetDomainTrusts(conn *ldap.Conn, baseDN string) {
 		default:
 			attribute = entry.GetAttributeValue("trustAttributes")
 		}
+		fmt.Printf("                    [+] TrustPartner:" + "  ==>>>  " + entry.GetAttributeValue("trustPartner") +"\n")
+		fmt.Printf("                    [+] TrustDirection:" + "  ==>>>  " + directory +"\n")
+		fmt.Printf("                    [+] DN:" + "  ==>>>  " + entry.DN +"\n")
 		data := []string{
 			baseDN,
 			entry.GetAttributeValue("trustPartner"),
@@ -1088,12 +941,13 @@ func GetMail(conn *ldap.Conn, baseDN string) {
 	writeCSV("User_WithMail", csv)
 }
 
-func GetDomainControllers(conn *ldap.Conn, baseDN string) {
+func GetDomainControllers(conn *ldap.Conn, baseDN string,domainname string) {
 	attributes := []string{
 		"sAMAccountName",
 		"dNSHostName",
 		"operatingSystem",
-		"operatingSystemVersion"}
+		"operatingSystemVersion",
+		"dcip"}
 	filter := "(&(objectCategory=computer)(userAccountControl:1.2.840.113556.1.4.803:=8192))"
 	csv := [][]string{}
 	csv = append(csv, attributes)
@@ -1102,71 +956,187 @@ func GetDomainControllers(conn *ldap.Conn, baseDN string) {
 
 	fmt.Printf("[i] Domain Controllers: %d found\n", len(sr.Entries))
 	for _, entry := range sr.Entries {
-		Controllername = append(Controllername, entry.GetAttributeValue("sAMAccountName"))
+		//Controllername = append(Controllername, entry.GetAttributeValue("sAMAccountName"))
+		//strings.Replace(entry.GetAttributeValue("sAMAccountName"), "A", "a", -1)
+		var dcips = GetipByname(conn,"DC="+domainname+",CN=MicrosoftDNS,DC=DomainDnsZones,"+baseDN,strings.Replace(entry.GetAttributeValue("sAMAccountName"), "$", "", -1))
+		var dcip string
+		for _, i := range dcips {
+			dcip += i+" "
+		}
 		data := []string{
 			entry.GetAttributeValue("sAMAccountName"),
 			entry.GetAttributeValue("dNSHostName"),
 			entry.GetAttributeValue("operatingSystem"),
-			entry.GetAttributeValue("operatingSystemVersion")}
+			entry.GetAttributeValue("operatingSystemVersion"),
+			dcip}
 		csv = append(csv, data)
-		fmt.Printf("                    [+] "+entry.GetAttributeValue("sAMAccountName") + "  ==>>>   "+entry.GetAttributeValue("operatingSystem") +"  ["+entry.GetAttributeValue("operatingSystemVersion")+"]\n")
+		fmt.Printf("                    [+] "+entry.GetAttributeValue("sAMAccountName") + "  ==>>>   "+entry.GetAttributeValue("operatingSystem") +"  ["+entry.GetAttributeValue("operatingSystemVersion")+"]"+"  ==>>>  "+dcip+"\n")
 	}
 	writeCSV("DomainControllers", csv)
 }
 
-func DC_and_Exchange_DNS(conn *ldap.Conn, baseDN string) {
-	fmt.Printf("[i] DC and Exchange DNS: \n")
+//func DC_and_Exchange_DNS(conn *ldap.Conn, baseDN string) {
+//	fmt.Printf("[i] DC and Exchange DNS: \n")
+//
+//	attributes := []string{
+//		"name",
+//		"whenCreated",
+//		"dnsRecord",
+//		"dc",
+//		"exchange"}
+//	filter := "(objectClass=dnsNode)"
+//	csv := [][]string{}
+//	csv = append(csv, attributes)
+//
+//	sr := ldapSearch(baseDN, filter, attributes, conn)
+//
+//	for _, entry := range sr.Entries {
+//		var rawSidBytes [][]byte = entry.GetRawAttributeValues("dnsRecord")
+//		for _, sidByt := range rawSidBytes {
+//			ipa := ""
+//			if len(processDnsRecordAttribute(sidByt)) != 0 && entry.GetAttributeValue("name") != "DomainDnsZones" && entry.GetAttributeValue("name") != "ForestDnsZones" && entry.GetAttributeValue("name") != "@" {
+//				ipa = strconv.Itoa(int(processDnsRecordAttribute(sidByt)[0])) + "." + strconv.Itoa(int(processDnsRecordAttribute(sidByt)[1])) + "." + strconv.Itoa(int(processDnsRecordAttribute(sidByt)[2])) + "." + strconv.Itoa(int(processDnsRecordAttribute(sidByt)[3]))
+//				for _, value := range Controllername {
+//					if strings.EqualFold((entry.GetAttributeValue("name") + "$"), value) {
+//						data := []string{
+//							entry.GetAttributeValue("name"),
+//							entry.GetAttributeValue("whenCreated"),
+//							ipa,
+//							"√"}
+//						csv = append(csv, data)
+//						fmt.Printf("                    [+] "+entry.GetAttributeValue("name")+"$  ==>>>   "+ipa+"\n")
+//					}
+//				}
+//				for _, value := range Exchangename {
+//					if strings.EqualFold((entry.GetAttributeValue("name")), value) {
+//						data := []string{
+//							entry.GetAttributeValue("name"),
+//							entry.GetAttributeValue("whenCreated"),
+//							ipa,
+//							"",
+//							"√"}
+//						csv = append(csv, data)
+//						fmt.Printf("                    [+] "+entry.GetAttributeValue("name")+"$  ==>>>   "+ipa+"\n")
+//					}
+//
+//				}
+//			}
+//		}
+//	}
+//	//fmt.Printf("                    " + "[+] Saved in DC_and_Exchange_DNS.csv \n")
+//	writeCSV("DC_and_Exchange_DNS", csv)
+//}
 
+//func GETIsHaveAdcs(conn *ldap.Conn, baseDN string) {
+//
+//	attributes := []string{
+//		"distinguishedName",
+//		"cn",
+//		"distinguishedName"}
+//	filter := "(objectclass=certificationAuthority)"
+//
+//	csv := [][]string{}
+//	csv = append(csv, attributes)
+//
+//	sr := ldapSearch(baseDN, filter, attributes, conn)
+//
+//	if len(sr.Entries) > 0 {
+//		fmt.Printf("[i] ADCS has found!\n")
+//	//}
+//
+//	for _, entry := range sr.Entries {
+//		if (strings.Index(entry.GetAttributeValue("distinguishedName"), "Certification Authorities")) != -1 {
+//			data := []string{
+//				entry.GetAttributeValue("cn"),
+//				entry.GetAttributeValue("distinguishedName")}
+//			csv = append(csv, data)
+//			fmt.Printf("                    [i] Root CA:  \n")
+//			fmt.Printf("                    [+] " + entry.GetAttributeValue("distinguishedName") + " \n")
+//		}
+//	}
+//	writeCSV("ADCS", csv)
+//}
+//}
+
+func GETADCS(conn *ldap.Conn, baseDN string,domainname string ) {
+	base := "dc=" + strings.Replace(domainname, ".", ",dc=", -1)
 	attributes := []string{
-		"name",
+		"Root CA",
+		"Enterprise CA",
+		"cn",
+		"distinguishedName",
+		"dNSHostName",
 		"whenCreated",
-		"dnsRecord",
-		"dc",
-		"exchange"}
-	filter := "(objectClass=dnsNode)"
+		"whenChanged",
+		"ADCSip"}
+	filter  := "(objectclass=certificationAuthority)"
+	filter1 := "(objectClass=pKIEnrollmentService)"
 	csv := [][]string{}
 	csv = append(csv, attributes)
 
 	sr := ldapSearch(baseDN, filter, attributes, conn)
-	dnscount := 0
+	sr1 := ldapSearch(baseDN, filter1, attributes, conn)
 
+	if len(sr.Entries) > 0 {
+		fmt.Printf("[i] ADCS has found!\n")
+
+		for _, entry := range sr.Entries {
+			if (strings.Index(entry.GetAttributeValue("distinguishedName"), "Certification Authorities")) != -1 {
+				data := []string{
+					"√",
+					"",
+					entry.GetAttributeValue("cn"),
+					entry.GetAttributeValue("distinguishedName"),
+					"",
+					entry.GetAttributeValue("whenCreated"),
+					entry.GetAttributeValue("whenChanged")}
+				csv = append(csv, data)
+				fmt.Printf("                    [+] Root CA:" + "  ==>>>  " + entry.GetAttributeValue("cn") +"\n")
+			}
+		}
+		var adcsname string
+		for _, entry := range sr1.Entries {
+
+			adcsname = strings.Replace(entry.GetAttributeValue("dNSHostName"), "."+domainname,"", -1)
+			var adcsips = GetipByname(conn,"DC="+domainname+",CN=MicrosoftDNS,DC=DomainDnsZones,"+base,adcsname)
+			var resultip string
+			for _, i := range adcsips {resultip += i+" "}
+			fmt.Printf("                    [+] Enterprise/Enrollment CA:" + "  ==>>>  " + entry.GetAttributeValue("cn") +"(computer FQDN: "+ entry.GetAttributeValue("dNSHostName") +")"+"  ==>>>  "+resultip+"\n")
+
+			data := []string{
+				"",
+				"√",
+				entry.GetAttributeValue("cn"),
+				entry.GetAttributeValue("distinguishedName"),
+				entry.GetAttributeValue("dNSHostName"),
+				entry.GetAttributeValue("whenCreated"),
+				entry.GetAttributeValue("whenChanged"),
+				resultip}
+
+			csv = append(csv, data)
+		}
+		writeCSV("ADCS", csv)
+	} else {
+		fmt.Printf("[i] ADCS has not found!\n")
+	}
+}
+
+func GetipByname(conn *ldap.Conn, baseDN string, computername string) []string {
+	filter := "(&(objectCategory=dnsNode)(name="+computername+"))"
+	var ipa []string
+	attributes := []string{
+		"name",
+		"dnsRecord"}
+	sr := ldapSearch(baseDN, filter, attributes, conn)
 	for _, entry := range sr.Entries {
 		var rawSidBytes [][]byte = entry.GetRawAttributeValues("dnsRecord")
 		for _, sidByt := range rawSidBytes {
-			ipa := ""
 			if len(processDnsRecordAttribute(sidByt)) != 0 && entry.GetAttributeValue("name") != "DomainDnsZones" && entry.GetAttributeValue("name") != "ForestDnsZones" && entry.GetAttributeValue("name") != "@" {
-				ipa = strconv.Itoa(int(processDnsRecordAttribute(sidByt)[0])) + "." + strconv.Itoa(int(processDnsRecordAttribute(sidByt)[1])) + "." + strconv.Itoa(int(processDnsRecordAttribute(sidByt)[2])) + "." + strconv.Itoa(int(processDnsRecordAttribute(sidByt)[3]))
-				for _, value := range Controllername {
-					if strings.EqualFold((entry.GetAttributeValue("name") + "$"), value) {
-						data := []string{
-							entry.GetAttributeValue("name"),
-							entry.GetAttributeValue("whenCreated"),
-							ipa,
-							"√"}
-						csv = append(csv, data)
-						fmt.Printf("                    [+] "+entry.GetAttributeValue("name")+"$  ==>>>   "+ipa+"\n")
-						dnscount++
-					}
-				}
-				for _, value := range Exchangename {
-					if strings.EqualFold((entry.GetAttributeValue("name")), value) {
-						data := []string{
-							entry.GetAttributeValue("name"),
-							entry.GetAttributeValue("whenCreated"),
-							ipa,
-							"",
-							"√"}
-						csv = append(csv, data)
-						fmt.Printf("                    [+] "+entry.GetAttributeValue("name")+"$  ==>>>   "+ipa+"\n")
-						dnscount++
-					}
-
-				}
+				ipa = append(ipa, strconv.Itoa(int(processDnsRecordAttribute(sidByt)[0])) + "." + strconv.Itoa(int(processDnsRecordAttribute(sidByt)[1])) + "." + strconv.Itoa(int(processDnsRecordAttribute(sidByt)[2])) + "." + strconv.Itoa(int(processDnsRecordAttribute(sidByt)[3])))
 			}
 		}
 	}
-	//fmt.Printf("                    " + "[+] Saved in DC_and_Exchange_DNS.csv \n")
-	writeCSV("DC_and_Exchange_DNS", csv)
+	return ipa
 }
 
 func GetAllDNS(conn *ldap.Conn, baseDN string) {
@@ -1180,8 +1150,9 @@ func GetAllDNS(conn *ldap.Conn, baseDN string) {
 	csv = append(csv, attributes)
 	sr := ldapSearch(baseDN, filter, attributes, conn)
 	dnscount := 0
-
 	for _, entry := range sr.Entries {
+		//fmt.Printf(entry.GetAttributeValue("name"))
+		//fmt.Printf("\n")
 		var rawSidBytes [][]byte = entry.GetRawAttributeValues("dnsRecord")
 		for _, sidByt := range rawSidBytes {
 			ipa := ""
@@ -1196,7 +1167,7 @@ func GetAllDNS(conn *ldap.Conn, baseDN string) {
 			}
 		}
 	}
-	fmt.Printf("                    [+]Domain Dns %d found,Saved in All_DNS.csv\n", dnscount)
+	fmt.Printf("                    [+] Domain Dns %d found,Saved in All_DNS.csv\n", dnscount)
 	writeCSV("All_DNS", csv)
 }
 

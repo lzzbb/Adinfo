@@ -15,7 +15,7 @@ const logo = `
     /  \  | |  | |_ _ __ | |_ ___
    / /\ \ | |  | | | '_ \|  _/ _ \     Tools that collect information from domain
   / ____ \| |__| | | | | | || (_) |
- /_/    \_\_____/|_|_| |_|_| \___/     v1.4 by lzz
+ /_/    \_\_____/|_|_| |_|_| \___/     v1.5 by lzz
 
 `
 
@@ -102,13 +102,13 @@ func main() {
 		StartTLS:    *startTLS}
 
 	goddi.Connect(li,ishash)
-	defer li.Conn.Close()
+	//defer li.Conn.Close()
 	start := time.Now()
 
 	if (*getDCandExchangeDNS) == true {
-		goddi.GetDomainControllers(li.Conn, baseDN)
-		goddi.GetExchangeServerVersion(li.Conn, GetConfigurationContextEntry)
-		goddi.DC_and_Exchange_DNS(li.Conn, "DC="+*domain+",CN=MicrosoftDNS,DC=DomainDnsZones,"+baseDN)
+		goddi.GetDomainControllers(li.Conn, baseDN,li.Domain)
+		goddi.GetExchangeServer(li.Conn, GetConfigurationContextEntry,li.Domain)
+		//goddi.DC_and_Exchange_DNS(li.Conn, "DC="+*domain+",CN=MicrosoftDNS,DC=DomainDnsZones,"+baseDN)
 		stop := time.Since(start)
 		cwd := goddi.GetCWD()
 		fmt.Printf("[i] CSVs written to 'csv' directory in %s\n[i] Execution took %s\n", cwd, stop)
@@ -143,7 +143,7 @@ func main() {
 		os.Exit(1)
 	}
 	if (*getExchangeInformation) == true {
-		goddi.GetExchangeServerVersion(li.Conn, GetConfigurationContextEntry)
+		goddi.GetExchangeServer(li.Conn, GetConfigurationContextEntry,li.Domain)
 		stop := time.Since(start)
 		cwd := goddi.GetCWD()
 		fmt.Printf("[i] CSVs written to 'csv' directory in %s\n[i] Execution took %s\n", cwd, stop)
@@ -228,14 +228,14 @@ func main() {
 		os.Exit(1)
 	}
 	if (*getADCS) == true {
-		goddi.GETADCS(li.Conn, "CN=Public Key Services,CN=Services,CN=Configuration,"+baseDN)
+		goddi.GETADCS(li.Conn, "CN=Public Key Services,CN=Services,CN=Configuration,"+baseDN,li.Domain)
 		stop := time.Since(start)
 		cwd := goddi.GetCWD()
 		fmt.Printf("[i] CSVs written to 'csv' directory in %s\n[i] Execution took %s\n", cwd, stop)
 		os.Exit(1)
 	}
 	if (*getDC) == true {
-		goddi.GetDomainControllers(li.Conn, baseDN)
+		goddi.GetDomainControllers(li.Conn, baseDN,li.Domain)
 		stop := time.Since(start)
 		cwd := goddi.GetCWD()
 		fmt.Printf("[i] CSVs written to 'csv' directory in %s\n[i] Execution took %s\n", cwd, stop)
@@ -324,10 +324,10 @@ func main() {
 	goddi.GetDomainSID(li.Conn, baseDN)
 	goddi.GetMAQ(li.Conn, baseDN)
 	goddi.GetDomainAccountPolicy(li.Conn, baseDN)
-	goddi.GetDomainControllers(li.Conn, baseDN)
-	goddi.GETADCS(li.Conn, "CN=Public Key Services,CN=Services,CN=Configuration,"+baseDN)
-	goddi.GetExchangeServerVersion(li.Conn, GetConfigurationContextEntry)
-	goddi.DC_and_Exchange_DNS(li.Conn, "DC="+*domain+",CN=MicrosoftDNS,DC=DomainDnsZones,"+baseDN)
+	goddi.GetDomainControllers(li.Conn, baseDN,li.Domain)
+	goddi.GETADCS(li.Conn, "CN=Public Key Services,CN=Services,CN=Configuration,"+baseDN,*domain)
+	goddi.GetExchangeServer(li.Conn, GetConfigurationContextEntry,li.Domain)
+	//goddi.DC_and_Exchange_DNS(li.Conn, "DC="+*domain+",CN=MicrosoftDNS,DC=DomainDnsZones,"+baseDN)
 	goddi.GetAllDNS(li.Conn, "DC="+*domain+",CN=MicrosoftDNS,DC=DomainDnsZones,"+baseDN)
 	goddi.GetDomainTrusts(li.Conn, baseDN)
 	goddi.GetSPN(li.Conn, baseDN)

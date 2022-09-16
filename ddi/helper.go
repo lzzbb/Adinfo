@@ -10,6 +10,7 @@ import (
 	"encoding/hex"
 	"log"
 	"math"
+	"net"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -206,3 +207,26 @@ func ValidateIPHostname(ldapServer string, domain string) (string, string) {
 }
 
 */
+
+func tcpGather(ip string, ports []string) map[string]string {
+	// check emqx 1883, 8083 port
+
+	results := make(map[string]string)
+	for _, port := range ports {
+		address := net.JoinHostPort(ip, port)
+		// 3 second timeout
+		conn, err := net.DialTimeout("tcp", address, 3*time.Second)
+		if err != nil {
+			results[port] ="failed"
+			// todo log handler
+		} else {
+			if conn != nil {
+				results[port] ="success"
+				_ = conn.Close()
+			} else {
+				results[port] ="failed"
+			}
+		}
+	}
+	return results
+}

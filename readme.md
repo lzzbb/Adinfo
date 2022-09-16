@@ -9,12 +9,12 @@
 ### Usage
 
 1.输出所有信息
+```
+./Adinfo -d redteam.lab --dc 192.168.131.130 -u fff -H 5e95607216d9a4b7654d831beb9ee95c
 
-./Adinfo -d redteam.lab --dc 192.168.1.1 -u ccc -H 5e95607216d9a4b7654d831beb9ee95c
-
-./Adinfo -d redteam.lab --dc 192.168.1.1 -u ccc -p Qq123456..
-
-![](./usage.png)
+./Adinfo -d redteam.lab --dc 192.168.131.130 -u fff -p Qq123456..
+```
+![](./use/usage.png)
 
 2.当域很大或者目前只需要特定属性的值，可以指定下面的参数进行查询
 
@@ -46,9 +46,33 @@
       --getADCS                  get ADCS information
       --getOU                    get domain OU
       --checkLAPS                get is have LAPS, If the current user has permission, all LAPS passwords will be exported.
-      --checkbackdoor            check backdoor：MAQ、AsReproast、SIDHistory、GetRBCD、UnconstrainedDeligation、ConstrainedDeligation、SensitiveDelegateAccount
+      --checkbackdoor            check backdoor：MAQ、AsReproast、Kerberoast、SIDHistory、GetRBCD、UnconstrainedDeligation、ConstrainedDeligation、SensitiveDelegateAccount
       --Krbtgttime               get Krbtgt password last set time
 ```
+
+举以下三例说明：
+
+(1).查看域内ADCS信息，并具体的FQDN和ip
+```
+./Adinfo_darwin -d redteam.lab --dc 192.168.131.130 -u fff -p Qq123456..  --getADCS
+```
+
+![](./use/adcs.png)
+
+(2).获取域内所有的DNS信息
+```
+./Adinfo_darwin -d redteam.lab --dc 192.168.131.130 -u fff -p Qq123456.. --getAllDNS
+```
+
+![](./use/alldns.png)
+![](./use/alldnsip.png)
+
+(3).获取域内所有用户名（过滤掉了disabled和Locked user，只输出用户名到Users_OnlyName.csv中，将csv重命名为txt就能对所有有用的域用户进行密码喷洒）
+```
+./Adinfo_darwin -d redteam.lab --dc 192.168.131.130 -u fff -p Qq123456.. --getUsefulUserName
+```
+![](./use/getuser.png)
+
 
 ### Todo
 
